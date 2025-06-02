@@ -70,7 +70,6 @@
       e.preventDefault();
       var dx = e.touches[0].clientX - lastTouch.x;
       var dy = e.touches[0].clientY - lastTouch.y;
-      // Use same logic as middle mouse: both axes
       var hSign = g.invertH ? -1 : 1;
       var vSign = g.invertV ? -1 : 1;
       g.rotationY += hSign * dx * 0.01;
@@ -84,9 +83,12 @@
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      // Use a much less sensitive zoom factor
+      // Invert direction and reduce sensitivity
       var scale = dist / pinchStartDist;
-      g.zoom = pinchStartZoom * Math.pow(scale, 0.5); // sqrt for less sensitivity
+      // Pinch in (fingers together, dist decreases) should zoom out (zoom decreases)
+      // Pinch out (fingers apart, dist increases) should zoom in (zoom increases)
+      // Use a smaller exponent for less sensitivity, and invert direction
+      g.zoom = pinchStartZoom * Math.pow(scale, 0.25); // much less sensitive
       if (typeof g.drawScene === 'function') g.drawScene();
     }
   }, { passive: false });

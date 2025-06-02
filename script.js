@@ -251,9 +251,10 @@ function getMVPMatrix() {
   const mvp = new Float32Array(16);
 
   // Camera setup: fixed camera, scale world by zoom before view/projection
+  // --- Use window.rotationX and window.rotationY for camera ---
   const r = 3;
-  const elev = rotationX;
-  const azim = rotationY;
+  const elev = typeof window.rotationX === 'number' ? window.rotationX : 0;
+  const azim = typeof window.rotationY === 'number' ? window.rotationY : 0;
   const camY = 2 * Math.cos(elev) + r * Math.sin(elev);
   const camXZ = r * Math.cos(elev);
   const camX = camXZ * Math.sin(azim);
@@ -266,9 +267,9 @@ function getMVPMatrix() {
 
   // Scale matrix for zoom (scale world, not camera)
   const scale = new Float32Array([
-    zoom, 0,    0,    0,
-    0,    zoom, 0,    0,
-    0,    0,    zoom, 0,
+    typeof window.zoom === 'number' ? window.zoom : 1, 0,    0,    0,
+    0,    typeof window.zoom === 'number' ? window.zoom : 1, 0,    0,
+    0,    0,    typeof window.zoom === 'number' ? window.zoom : 1, 0,
     0,    0,    0,    1
   ]);
 
@@ -1054,6 +1055,11 @@ let lastX = 0;
 let lastY = 0;
 let zoom = 1.0; // 1.0 = default, <1 = zoom out, >1 = zoom in
 
+// --- Sync window globals for mobile.js ---
+window.rotationX = rotationX;
+window.rotationY = rotationY;
+window.zoom = zoom;
+
 canvas.addEventListener('mousedown', (e) => {
   if (e.button === 0) {
     isDragging = true;
@@ -1078,6 +1084,9 @@ window.addEventListener('mousemove', (e) => {
     rotationY += hSign * dx * 0.01;
     lastX = e.clientX;
     lastY = e.clientY;
+    window.rotationY = rotationY;
+    window.rotationX = rotationX;
+    window.zoom = zoom;
     drawScene();
   } else if (isRightDragging) {
     const dy = e.clientY - lastY;
@@ -1085,6 +1094,9 @@ window.addEventListener('mousemove', (e) => {
     rotationX = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, rotationX));
     lastX = e.clientX;
     lastY = e.clientY;
+    window.rotationY = rotationY;
+    window.rotationX = rotationX;
+    window.zoom = zoom;
     drawScene();
   } else if (isMiddleDragging) {
     const dx = e.clientX - lastX;
@@ -1094,6 +1106,9 @@ window.addEventListener('mousemove', (e) => {
     rotationX = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, rotationX));
     lastX = e.clientX;
     lastY = e.clientY;
+    window.rotationY = rotationY;
+    window.rotationX = rotationX;
+    window.zoom = zoom;
     drawScene();
   }
 });
@@ -1116,6 +1131,7 @@ canvas.addEventListener('wheel', (e) => {
   // Invert zoom direction if needed
   if (invertZoom) delta = -delta;
   zoom *= Math.exp(-delta * 0.05);
+  window.zoom = zoom;
   drawScene();
 }, { passive: false });
 
@@ -1124,6 +1140,7 @@ canvas.addEventListener('gesturechange', (e) => {
   e.preventDefault();
   // Invert zoom direction if needed
   zoom *= invertZoom ? e.scale : 1 / e.scale;
+  window.zoom = zoom;
   drawScene();
 }, { passive: false });
 

@@ -51,6 +51,10 @@
   }
   var g = getScriptGlobals();
 
+  // --- Ensure global rotationX and rotationY exist and are numbers ---
+  if (typeof window.rotationX !== 'number' || isNaN(window.rotationX)) window.rotationX = 0;
+  if (typeof window.rotationY !== 'number' || isNaN(window.rotationY)) window.rotationY = 0;
+
   // --- Add: getInvertZoom helper ---
   function getInvertZoom() {
     // Use global invertZoom if available, else false
@@ -59,65 +63,70 @@
 
   // --- Fix: Always allow drag to orbit, even if vector tip is present ---
   let dragTarget = null;
+  let cameraDragActive = false;
   canvas.addEventListener('touchstart', function(e) {
-    // Only start orbit if not touching a vector tip
     if (e.touches.length === 1) {
-      // Check if touch is on a vector tip
       let touch = e.touches[0];
       let el = document.elementFromPoint(touch.clientX, touch.clientY);
       if (el && el.classList && el.classList.contains('vector-tip-draggable')) {
         dragTarget = el;
-        // Let vector tip handle its own drag
+        cameraDragActive = false;
         return;
       }
-      isRotating = true;
+      cameraDragActive = true;
       lastTouch = { x: touch.clientX, y: touch.clientY };
       dragTarget = null;
+      // Debug
+      console.log('[mobile.js] Orbit drag start at', lastTouch);
     } else if (e.touches.length === 2) {
-      isRotating = false;
+      cameraDragActive = false;
       pinchStartDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      pinchStartZoom = g.zoom;
+      pinchStartZoom = window.zoom;
       dragTarget = null;
     }
   }, { passive: false });
 
   canvas.addEventListener('touchmove', function(e) {
-    if (dragTarget) return; // let vector tip handle its drag
-    if (isRotating && e.touches.length === 1) {
+    if (dragTarget) return;
+    if (cameraDragActive && e.touches.length === 1) {
       e.preventDefault();
       var dx = e.touches[0].clientX - lastTouch.x;
       var dy = e.touches[0].clientY - lastTouch.y;
-      var hSign = g.invertH ? -1 : 1;
-      var vSign = g.invertV ? -1 : 1;
-      g.rotationY += hSign * dx * 0.01;
-      g.rotationX += vSign * dy * 0.01;
-      g.rotationX = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, g.rotationX));
+      var hSign = window.invertH ? -1 : 1;
+      var vSign = window.invertV ? -1 : 1;
+      window.rotationY += hSign * dx * 0.01;
+      window.rotationX += vSign * dy * 0.01;
+      window.rotationX = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, window.rotationX));
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      if (typeof g.drawScene === 'function') g.drawScene();
+      // Debug
+      console.log('[mobile.js] Orbit drag move dx:', dx, 'dy:', dy, 'rotationY:', window.rotationY, 'rotationX:', window.rotationX);
+      if (typeof window.drawScene === 'function') window.drawScene();
     } else if (e.touches.length === 2 && pinchStartDist !== null && pinchStartZoom !== null) {
       e.preventDefault();
       var dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      // Invert zoom direction and reduce sensitivity
       var scale = pinchStartDist / dist;
       if (getInvertZoom()) scale = 1 / scale;
-      g.zoom = pinchStartZoom * Math.pow(scale, 0.15);
-      if (typeof g.drawScene === 'function') g.drawScene();
+      window.zoom = pinchStartZoom * Math.pow(scale, 0.15);
+      if (typeof window.drawScene === 'function') window.drawScene();
     }
   }, { passive: false });
 
   canvas.addEventListener('touchend', function(e) {
     if (e.touches.length === 0) {
-      isRotating = false;
+      cameraDragActive = false;
       lastTouch = null;
       pinchStartDist = null;
       pinchStartZoom = null;
       dragTarget = null;
+      if (window.debugMode) {
+        console.log('[mobile.js] Orbit drag end');
+      }
     }
   });
 
@@ -126,18 +135,26 @@
   let vectorTipDragging = null;
   let vectorTipDragOrig = null;
   let vectorTipDragOrigTouch = null;
+  let vectorTipDragOffset = null; // <--- add this
 
   document.addEventListener('touchstart', function(e) {
     var target = e.target;
-    if (target.classList && target.classList.contains('vector-tip-draggable')) {
+    // Only start a new drag if not already dragging
+    if (!vectorTipDragging && target.classList && target.classList.contains('vector-tip-draggable')) {
       vectorTipDragging = target;
       vectorTipDragOrig = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      // Compute offset between touch and tip center
+      const rect = target.getBoundingClientRect();
+      vectorTipDragOffset = {
+        x: e.touches[0].clientX - (rect.left + rect.width / 2),
+        y: e.touches[0].clientY - (rect.top + rect.height / 2)
+      };
       // Simulate mousedown for script.js drag logic
       var evt = new MouseEvent('mousedown', {
         bubbles: true,
         cancelable: true,
-        clientX: e.touches[0].clientX,
-        clientY: e.touches[0].clientY
+        clientX: e.touches[0].clientX - vectorTipDragOffset.x,
+        clientY: e.touches[0].clientY - vectorTipDragOffset.y
       });
       target.dispatchEvent(evt);
       e.preventDefault();
@@ -146,12 +163,12 @@
 
   document.addEventListener('touchmove', function(e) {
     if (vectorTipDragging && e.touches.length === 1) {
-      // Simulate mousemove for script.js drag logic
+      // Use the offset so the tip stays under the finger
       var evt = new MouseEvent('mousemove', {
         bubbles: true,
         cancelable: true,
-        clientX: e.touches[0].clientX,
-        clientY: e.touches[0].clientY
+        clientX: e.touches[0].clientX - (vectorTipDragOffset ? vectorTipDragOffset.x : 0),
+        clientY: e.touches[0].clientY - (vectorTipDragOffset ? vectorTipDragOffset.y : 0)
       });
       vectorTipDragging.dispatchEvent(evt);
       e.preventDefault();
@@ -159,8 +176,7 @@
   }, { passive: false });
 
   document.addEventListener('touchend', function(e) {
-    if (vectorTipDragging) {
-      // Simulate mouseup for script.js drag logic
+    if (vectorTipDragging && e.touches.length === 0) {
       var evt = new MouseEvent('mouseup', {
         bubbles: true,
         cancelable: true
@@ -169,6 +185,7 @@
       vectorTipDragging = null;
       vectorTipDragOrig = null;
       vectorTipDragOrigTouch = null;
+      vectorTipDragOffset = null; // <--- clear offset
       e.preventDefault();
     }
   }, { passive: false });

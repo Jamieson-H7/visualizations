@@ -51,10 +51,22 @@
   }
   var g = getScriptGlobals();
 
+  // --- Fix: Always allow drag to orbit, even if vector tip is present ---
+  let dragTarget = null;
   canvas.addEventListener('touchstart', function(e) {
+    // Only start orbit if not touching a vector tip
     if (e.touches.length === 1) {
+      // Check if touch is on a vector tip
+      let touch = e.touches[0];
+      let el = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (el && el.classList && el.classList.contains('vector-tip-draggable')) {
+        dragTarget = el;
+        // Let vector tip handle its own drag
+        return;
+      }
       isRotating = true;
-      lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastTouch = { x: touch.clientX, y: touch.clientY };
+      dragTarget = null;
     } else if (e.touches.length === 2) {
       isRotating = false;
       pinchStartDist = Math.hypot(
@@ -62,10 +74,12 @@
         e.touches[0].clientY - e.touches[1].clientY
       );
       pinchStartZoom = g.zoom;
+      dragTarget = null;
     }
   }, { passive: false });
 
   canvas.addEventListener('touchmove', function(e) {
+    if (dragTarget) return; // let vector tip handle its drag
     if (isRotating && e.touches.length === 1) {
       e.preventDefault();
       var dx = e.touches[0].clientX - lastTouch.x;
@@ -83,12 +97,12 @@
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      // Invert direction and reduce sensitivity
-      var scale = dist / pinchStartDist;
-      // Pinch in (fingers together, dist decreases) should zoom out (zoom decreases)
-      // Pinch out (fingers apart, dist increases) should zoom in (zoom increases)
-      // Use a smaller exponent for less sensitivity, and invert direction
-      g.zoom = pinchStartZoom * Math.pow(scale, 0.25); // much less sensitive
+      // Fix: invert direction and reduce sensitivity
+      // Pinch in (fingers together, dist decreases) should zoom in (zoom increases)
+      // Pinch out (fingers apart, dist increases) should zoom out (zoom decreases)
+      // Use a small exponent for less sensitivity
+      var scale = pinchStartDist / dist;
+      g.zoom = pinchStartZoom * Math.pow(scale, 0.15); // much less sensitive
       if (typeof g.drawScene === 'function') g.drawScene();
     }
   }, { passive: false });
@@ -99,11 +113,11 @@
       lastTouch = null;
       pinchStartDist = null;
       pinchStartZoom = null;
+      dragTarget = null;
     }
   });
 
-  // Make vector tips easier to drag on mobile (increase hit area)
-  // Already handled by CSS, but ensure touch events work
+  // --- Only simulate mousedown for vector tip if touch is on tip ---
   document.addEventListener('touchstart', function(e) {
     var target = e.target;
     if (target.classList && target.classList.contains('vector-tip-draggable')) {

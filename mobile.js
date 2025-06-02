@@ -51,6 +51,12 @@
   }
   var g = getScriptGlobals();
 
+  // --- Add: getInvertZoom helper ---
+  function getInvertZoom() {
+    // Use global invertZoom if available, else false
+    return typeof g.invertZoom !== 'undefined' ? g.invertZoom : false;
+  }
+
   // --- Fix: Always allow drag to orbit, even if vector tip is present ---
   let dragTarget = null;
   canvas.addEventListener('touchstart', function(e) {
@@ -97,12 +103,10 @@
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      // Fix: invert direction and reduce sensitivity
-      // Pinch in (fingers together, dist decreases) should zoom in (zoom increases)
-      // Pinch out (fingers apart, dist increases) should zoom out (zoom decreases)
-      // Use a small exponent for less sensitivity
+      // Invert zoom direction and reduce sensitivity
       var scale = pinchStartDist / dist;
-      g.zoom = pinchStartZoom * Math.pow(scale, 0.15); // much less sensitive
+      if (getInvertZoom()) scale = 1 / scale;
+      g.zoom = pinchStartZoom * Math.pow(scale, 0.15);
       if (typeof g.drawScene === 'function') g.drawScene();
     }
   }, { passive: false });
@@ -118,10 +122,17 @@
   });
 
   // --- Only simulate mousedown for vector tip if touch is on tip ---
+  // Improved: implement real drag for vector tips on mobile
+  let vectorTipDragging = null;
+  let vectorTipDragOrig = null;
+  let vectorTipDragOrigTouch = null;
+
   document.addEventListener('touchstart', function(e) {
     var target = e.target;
     if (target.classList && target.classList.contains('vector-tip-draggable')) {
-      // Simulate mousedown for drag logic in script.js
+      vectorTipDragging = target;
+      vectorTipDragOrig = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      // Simulate mousedown for script.js drag logic
       var evt = new MouseEvent('mousedown', {
         bubbles: true,
         cancelable: true,
@@ -129,6 +140,35 @@
         clientY: e.touches[0].clientY
       });
       target.dispatchEvent(evt);
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchmove', function(e) {
+    if (vectorTipDragging && e.touches.length === 1) {
+      // Simulate mousemove for script.js drag logic
+      var evt = new MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: e.touches[0].clientX,
+        clientY: e.touches[0].clientY
+      });
+      vectorTipDragging.dispatchEvent(evt);
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', function(e) {
+    if (vectorTipDragging) {
+      // Simulate mouseup for script.js drag logic
+      var evt = new MouseEvent('mouseup', {
+        bubbles: true,
+        cancelable: true
+      });
+      window.dispatchEvent(evt);
+      vectorTipDragging = null;
+      vectorTipDragOrig = null;
+      vectorTipDragOrigTouch = null;
       e.preventDefault();
     }
   }, { passive: false });

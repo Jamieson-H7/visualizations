@@ -1107,23 +1107,23 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
 // Zoom with scroll (support both 'wheel' and 'gesture' events)
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  // Try a much larger sensitivity for touchpads
   let delta = e.deltaY;
   if (e.deltaMode === 1) { // DOM_DELTA_LINE
     delta *= 16;
   } else if (e.deltaMode === 2) { // DOM_DELTA_PAGE
     delta *= 120;
   }
-  zoom *= Math.exp(-delta * 0.05); // much higher sensitivity
-  // No clamping of zoom
+  // Invert zoom direction if needed
+  if (invertZoom) delta = -delta;
+  zoom *= Math.exp(-delta * 0.05);
   drawScene();
 }, { passive: false });
 
 // For pinch gesture support (Safari, some browsers)
 canvas.addEventListener('gesturechange', (e) => {
   e.preventDefault();
-  zoom /= e.scale;
-  // No clamping of zoom
+  // Invert zoom direction if needed
+  zoom *= invertZoom ? e.scale : 1 / e.scale;
   drawScene();
 }, { passive: false });
 
@@ -1261,6 +1261,15 @@ if (toggleControlsBtn && controlsPanel && controlsContent && toggleControlsIcon)
     updateControlsPanel();
   };
   updateControlsPanel();
+}
+
+// --- Invert zoom direction toggle ---
+let invertZoomCheckbox = document.getElementById('invertZoomCheckbox');
+let invertZoom = invertZoomCheckbox ? invertZoomCheckbox.checked : false;
+if (invertZoomCheckbox) {
+  invertZoomCheckbox.addEventListener('change', () => {
+    invertZoom = invertZoomCheckbox.checked;
+  });
 }
 
 drawScene();

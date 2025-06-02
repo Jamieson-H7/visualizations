@@ -609,24 +609,66 @@ if (addVectorRow) {
 function getVectorColor(idx) {
   // Use a set of visually distinct colors, cycle if needed
   const colors = [
-    [1, 0.5, 0],    // orange
-    [0.2, 0.6, 1],  // blue
-    [0.2, 0.8, 0.2],// green
-    [0.8, 0.2, 0.8],// magenta
-    [0.8, 0.8, 0.2],// yellow
-    [0.5, 0.2, 0.8],// purple
-    [0.2, 0.8, 0.7],// teal
-    [0.8, 0.4, 0.2],// brown
+    [1, 0.5, 0],      // orange
+    [0.2, 0.6, 1],    // blue
+    [0.2, 0.8, 0.2],  // green
+    [0.8, 0.2, 0.8],  // magenta
+    [0.8, 0.8, 0.2],  // yellow
+    [0.5, 0.2, 0.8],  // purple
+    [0.2, 0.8, 0.7],  // teal
+    [0.8, 0.4, 0.2],  // brown
+    [0.9, 0.1, 0.1],  // red
+    [0.1, 0.1, 0.9],  // deep blue
+    [0.1, 0.7, 0.5],  // turquoise
+    [0.7, 0.1, 0.5],  // pinkish purple
+    [0.6, 0.6, 0.1],  // olive
+    [0.1, 0.6, 0.6],  // cyan
+    [0.7, 0.3, 0.1],  // burnt orange
+    [0.3, 0.7, 0.1],  // lime green
+    [0.6, 0.1, 0.3],  // raspberry
+    [0.1, 0.3, 0.7],  // steel blue
+    [0.7, 0.7, 0.7],  // light gray
+    [0.3, 0.3, 0.3],  // dark gray
   ];
   return colors[idx % colors.length];
 }
 
+// --- Add missing lightenColor function ---
 function lightenColor(color, factor = 0.5) {
   // Blend color with white by the given factor (0 = original, 1 = white)
   return color.map(c => c + (1 - c) * factor);
 }
 
+// --- Get current theme (for grid/canvas background) ---
+function isDarkMode() {
+  if (document.body.classList.contains('theme-dark')) return true;
+  if (document.body.classList.contains('theme-light')) return false;
+  // Auto: use system
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+// --- Project 3D point to 2D canvas coordinates ---
+function projectToCanvas(x, y, z, mvp, width, height) {
+  // Transform the point by the MVP matrix
+  const clipSpace = [
+    mvp[0] * x + mvp[4] * y + mvp[8] * z + mvp[12],
+    mvp[1] * x + mvp[5] * y + mvp[9] * z + mvp[13],
+    mvp[2] * x + mvp[6] * y + mvp[10] * z + mvp[14],
+    mvp[3] * x + mvp[7] * y + mvp[11] * z + mvp[15],
+  ];
+
+  // Perform perspective division
+  const ndc = clipSpace.map(c => c / clipSpace[3]);
+
+  // Convert to window coordinates
+  const x2d = (ndc[0] * 0.5 + 0.5) * width;
+  const y2d = (ndc[1] * -0.5 + 0.5) * height;
+
+  return [x2d, y2d];
+}
+
 // --- Draggable vector tips ---
+// Move these lines up so they're defined before drawScene uses them
 const vectorTipDivs = [];
 function clearVectorTipDivs() {
   for (const div of vectorTipDivs) {
@@ -635,26 +677,14 @@ function clearVectorTipDivs() {
   vectorTipDivs.length = 0;
 }
 
-// Project 3D point to 2D canvas coordinates
-function projectToCanvas(x, y, z, mvp, width, height) {
-  // Convert to clip space
-  const clip = [
-    mvp[0] * x + mvp[4] * y + mvp[8] * z + mvp[12],
-    mvp[1] * x + mvp[5] * y + mvp[9] * z + mvp[13],
-    mvp[2] * x + mvp[6] * y + mvp[10] * z + mvp[14],
-    mvp[3] * x + mvp[7] * y + mvp[11] * z + mvp[15],
-  ];
-  // Perspective divide
-  const ndc = clip.map(c => c / clip[3]);
-  // Convert to screen space
-  const x2d = (ndc[0] + 1) * 0.5 * width;
-  const y2d = (1 - (ndc[1] + 1) * 0.5) * height; // Flip Y
-  return [x2d, y2d];
-}
-
 // --- Modify drawScene to add draggable points ---
 function drawScene() {
-  gl.clearColor(1, 1, 1, 1);
+  // --- Set canvas background color based on theme ---
+  if (isDarkMode()) {
+    gl.clearColor(0.09, 0.10, 0.11, 1); // #181a1b
+  } else {
+    gl.clearColor(1, 1, 1, 1);
+  }
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   gl.useProgram(program);
@@ -667,25 +697,28 @@ function drawScene() {
   const min = -gridExtent;
   const max = gridExtent;
   const gridLines = [];
+  // --- Choose grid colors based on theme ---
+  const gridMinor = isDarkMode() ? [0.22, 0.22, 0.22] : [0.85, 0.85, 0.85];
+  const gridMajor = isDarkMode() ? [0.38, 0.38, 0.38] : [0.6, 0.6, 0.6];
   for (let i = min; i <= max; i++) {
     // Minor grid lines
     gridLines.push(
-      min * gridStep, 0, i * gridStep, 0.85, 0.85, 0.85,
-      max * gridStep, 0, i * gridStep, 0.85, 0.85, 0.85
+      min * gridStep, 0, i * gridStep, ...gridMinor,
+      max * gridStep, 0, i * gridStep, ...gridMinor
     );
     gridLines.push(
-      i * gridStep, 0, min * gridStep, 0.85, 0.85, 0.85,
-      i * gridStep, 0, max * gridStep, 0.85, 0.85, 0.85
+      i * gridStep, 0, min * gridStep, ...gridMinor,
+      i * gridStep, 0, max * gridStep, ...gridMinor
     );
     // Major grid lines (darker)
     if (i % 5 === 0) {
       gridLines.push(
-        min * gridStep, 0, i * gridStep, 0.6, 0.6, 0.6,
-        max * gridStep, 0, i * gridStep, 0.6, 0.6, 0.6
+        min * gridStep, 0, i * gridStep, ...gridMajor,
+        max * gridStep, 0, i * gridStep, ...gridMajor
       );
       gridLines.push(
-        i * gridStep, 0, min * gridStep, 0.6, 0.6, 0.6,
-        i * gridStep, 0, max * gridStep, 0.6, 0.6, 0.6
+        i * gridStep, 0, min * gridStep, ...gridMajor,
+        i * gridStep, 0, max * gridStep, ...gridMajor
       );
     }
   }
@@ -860,7 +893,7 @@ function drawScene() {
       div.style.border = '2px solid #fff';
       div.style.boxShadow = '0 1px 6px 0 rgba(0,0,0,0.12)';
       div.style.cursor = 'pointer';
-      div.style.zIndex = 1001;
+      div.style.zIndex = 9;
       div.title = 'Drag to move vector tip';
       div.draggable = false;
       div.className = 'vector-tip-draggable';
@@ -1055,6 +1088,10 @@ let lastX = 0;
 let lastY = 0;
 let zoom = 1.0; // 1.0 = default, <1 = zoom out, >1 = zoom in
 
+// --- Add min/max zoom limits ---
+const MIN_ZOOM = 0.01;
+const MAX_ZOOM = 10;
+
 // --- Sync window globals for mobile.js ---
 window.rotationX = rotationX;
 window.rotationY = rotationY;
@@ -1131,6 +1168,8 @@ canvas.addEventListener('wheel', (e) => {
   // Invert zoom direction if needed
   if (invertZoom) delta = -delta;
   zoom *= Math.exp(-delta * 0.05);
+  // --- Clamp zoom ---
+  zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
   window.zoom = zoom;
   drawScene();
 }, { passive: false });
@@ -1140,6 +1179,8 @@ canvas.addEventListener('gesturechange', (e) => {
   e.preventDefault();
   // Invert zoom direction if needed
   zoom *= invertZoom ? e.scale : 1 / e.scale;
+  // --- Clamp zoom ---
+  zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
   window.zoom = zoom;
   drawScene();
 }, { passive: false });
@@ -1286,6 +1327,42 @@ let invertZoom = invertZoomCheckbox ? invertZoomCheckbox.checked : false;
 if (invertZoomCheckbox) {
   invertZoomCheckbox.addEventListener('change', () => {
     invertZoom = invertZoomCheckbox.checked;
+  });
+}
+
+// --- Theme dropdown logic ---
+const themeSelect = document.getElementById('themeSelect');
+function applyTheme(theme) {
+  document.body.classList.remove('theme-dark', 'theme-light');
+  if (theme === 'dark') {
+    document.body.classList.add('theme-dark');
+  } else if (theme === 'light') {
+    document.body.classList.add('theme-light');
+  }
+  // If 'auto', no class is set, so @media (prefers-color-scheme) applies
+}
+function getSystemTheme() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+if (themeSelect) {
+  // Set initial dropdown value based on body class or system
+  let initial = 'auto';
+  if (document.body.classList.contains('theme-dark')) initial = 'dark';
+  else if (document.body.classList.contains('theme-light')) initial = 'light';
+  themeSelect.value = initial;
+  applyTheme(initial);
+
+  themeSelect.addEventListener('change', () => {
+    applyTheme(themeSelect.value);
+    drawScene(); // <-- Redraw canvas on theme change
+  });
+
+  // Listen for system theme changes if in auto mode
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if (themeSelect.value === 'auto') {
+      applyTheme('auto');
+      drawScene(); // <-- Redraw canvas on system theme change
+    }
   });
 }
 

@@ -221,3 +221,254 @@ body {
 #vectorSidebar .mobile-close-btn:active {
   background: #f3f3f3;
 }
+
+/* --- Dark mode styles --- */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #181a1b;
+    color: #e0e0e0;
+  }
+
+  #myCanvas {
+    background: #181a1b;
+  }
+
+  .main_controls {
+    background-color: rgba(32, 34, 36, 0.7);
+    border: 1px solid #333;
+    color: #e0e0e0;
+  }
+
+  #controlsPanel {
+    background: #232527e8 !important;
+    color: #e0e0e0 !important;
+    border: 1px solid #333 !important;
+  }
+
+  #controlsPanel button,
+  #controlsPanel input,
+  #controlsPanel label {
+    background: #232527 !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+  }
+
+  #vectorSidebar {
+    background: #232527f0 !important;
+    color: #e0e0e0 !important;
+    border-right: 1px solid #333 !important;
+    box-shadow: 2px 0 16px 0 rgba(0,0,0,0.35) !important;
+  }
+
+  #vectorSidebar table {
+    background: none;
+    color: #e0e0e0;
+  }
+
+  #vectorSidebar button,
+  #vectorSidebar input,
+  #vectorSidebar label {
+    background: #232527 !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+  }
+
+  #openSidebarBtn, #closeSidebarBtn {
+    background: #232527 !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+    box-shadow: 1px 2px 8px 0 rgba(0,0,0,0.25) !important;
+  }
+
+  #openSidebarBtn:hover {
+    background: #232527 !important;
+  }
+
+  #sidebarOverlay {
+    background: rgba(0,0,0,0.35) !important;
+  }
+
+  .vector-tip-draggable {
+    border: 2px solid #232527 !important;
+    box-shadow: 0 1px 6px 0 rgba(0,0,0,0.32) !important;
+  }
+
+  /* Debug info panel */
+  #debugInfo {
+    background: #232527f0 !important;
+    color: #e0e0e0 !important;
+    box-shadow: 0 0 8px 0 rgba(0,0,0,0.25) !important;
+  }
+
+  /* Sidebar close button (mobile) */
+  #vectorSidebar .mobile-close-btn {
+    background: #232527 !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+  }
+  #vectorSidebar .mobile-close-btn:active {
+    background: #181a1b !important;
+  }
+}
+
+/* --- Manual dark mode override --- */
+body.theme-dark,
+body.theme-dark #myCanvas,
+body.theme-dark .main_controls,
+body.theme-dark #controlsPanel,
+body.theme-dark #vectorSidebar,
+body.theme-dark #vectorSidebar table,
+body.theme-dark #vectorSidebar button,
+body.theme-dark #vectorSidebar input,
+body.theme-dark #vectorSidebar label,
+body.theme-dark #openSidebarBtn,
+body.theme-dark #closeSidebarBtn,
+body.theme-dark #sidebarOverlay,
+body.theme-dark .vector-tip-draggable,
+body.theme-dark #debugInfo,
+body.theme-dark #vectorSidebar .mobile-close-btn {
+  /* Use the same rules as @media (prefers-color-scheme: dark) */
+}
+
+body.theme-dark {
+  background: #181a1b;
+  color: #e0e0e0;
+}
+body.theme-dark #myCanvas {
+  background: #181a1b;
+}
+body.theme-dark .main_controls {
+  background-color: rgba(32, 34, 36, 0.7);
+  border: 1px solid #333;
+  color: #e0e0e0;
+}
+body.theme-dark #controlsPanel {
+  background: #232527e8 !important;
+  color: #e0e0e0 !important;
+  border: 1px solid #333 !important;
+}
+body.theme-dark #controlsPanel button,
+body.theme-dark #controlsPanel input,
+body.theme-dark #controlsPanel label {
+  background: #232527 !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+body.theme-dark #vectorSidebar {
+  background: #232527f0 !important;
+  color: #e0e0e0 !important;
+  border-right: 1px solid #333 !important;
+  box-shadow: 2px 0 16px 0 rgba(0,0,0,0.35) !important;
+}
+body.theme-dark #vectorSidebar table {
+  background: none;
+  color: #e0e0e0;
+}
+body.theme-dark #vectorSidebar button,
+body.theme-dark #vectorSidebar input,
+body.theme-dark #vectorSidebar label {
+  background: #232527 !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+body.theme-dark #openSidebarBtn, body.theme-dark #closeSidebarBtn {
+  background: #232527 !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+  box-shadow: 1px 2px 8px 0 rgba(0,0,0,0.25) !important;
+}
+body.theme-dark #openSidebarBtn:hover {
+  background: #232527 !important;
+}
+body.theme-dark #sidebarOverlay {
+  background: rgba(0,0,0,0.35) !important;
+}
+body.theme-dark .vector-tip-draggable {
+  border: 2px solid #232527 !important;
+  box-shadow: 0 1px 6px 0 rgba(0,0,0,0.32) !important;
+}
+body.theme-dark #debugInfo {
+  background: #232527f0 !important;
+  color: #e0e0e0 !important;
+  box-shadow: 0 0 8px 0 rgba(0,0,0,0.25) !important;
+}
+body.theme-dark #vectorSidebar .mobile-close-btn {
+  background: #232527 !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+body.theme-dark #vectorSidebar .mobile-close-btn:active {
+  background: #181a1b !important;
+}
+
+/* --- Manual light mode override --- */
+body.theme-light {
+  background: #fff;
+  color: #222;
+}
+body.theme-light #myCanvas {
+  background: #fff;
+}
+body.theme-light .main_controls {
+  background-color: rgba(255,255,255,0.3);
+  border: 1px solid #ccc;
+  color: #222;
+}
+body.theme-light #controlsPanel {
+  background: #fff8 !important;
+  color: #222 !important;
+  border: 1px solid #bbb !important;
+}
+body.theme-light #controlsPanel button,
+body.theme-light #controlsPanel input,
+body.theme-light #controlsPanel label {
+  background: #fff !important;
+  color: #222 !important;
+  border-color: #bbb !important;
+}
+body.theme-light #vectorSidebar {
+  background: rgba(255,255,255,0.93) !important;
+  color: #222 !important;
+  border-right: 1px solid #ddd !important;
+  box-shadow: 2px 0 16px 0 rgba(0,0,0,0.10) !important;
+}
+body.theme-light #vectorSidebar table {
+  background: none;
+  color: #222;
+}
+body.theme-light #vectorSidebar button,
+body.theme-light #vectorSidebar input,
+body.theme-light #vectorSidebar label {
+  background: #fff !important;
+  color: #222 !important;
+  border-color: #bbb !important;
+}
+body.theme-light #openSidebarBtn, body.theme-light #closeSidebarBtn {
+  background: #fff !important;
+  color: #444 !important;
+  border-color: #bbb !important;
+  box-shadow: 1px 2px 8px 0 rgba(0,0,0,0.08) !important;
+}
+body.theme-light #openSidebarBtn:hover {
+  background: #fff !important;
+}
+body.theme-light #sidebarOverlay {
+  background: rgba(0,0,0,0.18) !important;
+}
+body.theme-light .vector-tip-draggable {
+  border: 2px solid #fff !important;
+  box-shadow: 0 1px 6px 0 rgba(0,0,0,0.12) !important;
+}
+body.theme-light #debugInfo {
+  background: rgba(255,255,255,0.95) !important;
+  color: #222 !important;
+  box-shadow: 0 0 8px 0 rgba(0,0,0,0.08) !important;
+}
+body.theme-light #vectorSidebar .mobile-close-btn {
+  background: #fff !important;
+  color: #444 !important;
+  border-color: #bbb !important;
+}
+body.theme-light #vectorSidebar .mobile-close-btn:active {
+  background: #f3f3f3 !important;
+}

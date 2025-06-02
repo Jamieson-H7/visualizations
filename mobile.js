@@ -112,7 +112,9 @@
       );
       var scale = dist / pinchStartDist;
       if (getInvertZoom()) scale = 1 / scale;
-      window.zoom = pinchStartZoom * Math.pow(scale, 0.3);
+      let newZoom = pinchStartZoom * Math.pow(scale, 0.3);
+      // --- Clamp zoom ---
+      window.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
       if (typeof window.drawScene === 'function') window.drawScene();
     }
   }, { passive: false });

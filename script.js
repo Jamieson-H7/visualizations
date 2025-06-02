@@ -458,12 +458,14 @@ function drawCylinderAndCone(from, to, colorBase, colorTip) {
 }
 
 function multiplyMatrixVec(matrix, vec) {
-  // matrix: n x 3, vec: [x, y, z] -> returns [mx, my, mz]
-  let result = [0, 0, 0];
+  // matrix: n x 3, vec: [x, y, z] -> returns [n] (n x 1 vector)
+  let result = [];
   for (let i = 0; i < matrix.length; ++i) {
-    result[0] += matrix[i][0] * vec[i];
-    result[1] += matrix[i][1] * vec[i];
-    result[2] += matrix[i][2] * vec[i];
+    let sum = 0;
+    for (let j = 0; j < 3; ++j) {
+      sum += matrix[i][j] * (vec[j] !== undefined ? vec[j] : 0);
+    }
+    result.push(sum);
   }
   return result;
 }
@@ -524,9 +526,9 @@ const vectorsTable = document.getElementById('vectorsTable');
 const addVectorRow = document.getElementById('addVectorRow');
 // VECTORS
 let vectors = [
-  { value: [1, 0, 0], show: true, showTrans: true },
-  { value: [0, 1, 0], show: true, showTrans: true },
-  { value: [0, 0, 1], show: true, showTrans: true }
+  { value: [1, 0, 0], show: true, showTrans: true, mode: 'input' },
+  { value: [0, 1, 0], show: true, showTrans: true, mode: 'input' },
+  { value: [0, 0, 1], show: true, showTrans: true, mode: 'input' }
 ];
 
 function renderVectorsTable() {
@@ -548,7 +550,7 @@ function renderVectorsTable() {
     showCell.appendChild(showChk);
     row.appendChild(showCell);
 
-    // Vector input fields
+    // Vector input fields (always 3, not matrixVectors.length)
     for (let j = 0; j < 3; ++j) {
       let cell = document.createElement('td');
       cell.style.padding = '2px';
@@ -579,6 +581,17 @@ function renderVectorsTable() {
     showTransCell.appendChild(showTransChk);
     row.appendChild(showTransCell);
 
+    // --- Remove mode dropdown, but show icon for type ---
+    let modeCell = document.createElement('td');
+    let icon = document.createElement('span');
+    icon.textContent = vectors[i].mode === 'output' ? '🎯' : '➡️';
+    icon.title = vectors[i].mode === 'output'
+      ? 'Output vector (b in Ax=b)'
+      : 'Input vector (x in Ax=b)';
+    icon.style.fontSize = '1.2em';
+    modeCell.appendChild(icon);
+    row.appendChild(modeCell);
+
     // Remove row button
     let delCell = document.createElement('td');
     if (vectors.length > 1) {
@@ -600,11 +613,123 @@ function renderVectorsTable() {
   }
 }
 if (vectorsTable) renderVectorsTable();
+
+// --- Modal dialog for vector type selection ---
+function showVectorTypeDialog(callback) {
+  // Find the add button position
+  const addBtn = document.getElementById('addVectorRow');
+  let btnRect = addBtn ? addBtn.getBoundingClientRect() : null;
+
+  // Create modal overlay
+  const overlay = document.createElement('div');
+  overlay.style.position = 'fixed';
+  overlay.style.left = 0;
+  overlay.style.top = 0;
+  overlay.style.width = '100vw';
+  overlay.style.height = '100vh';
+  overlay.style.background = 'transparent';
+  overlay.style.zIndex = 3000;
+  overlay.style.pointerEvents = 'none';
+
+  // Dialog box
+  const box = document.createElement('div');
+  box.style.background = '#fff';
+  box.style.padding = '10px 14px 8px 14px';
+  box.style.borderRadius = '7px';
+  box.style.boxShadow = '0 2px 12px 0 rgba(0,0,0,0.13)';
+  box.style.display = 'flex';
+  box.style.flexDirection = 'column';
+  box.style.alignItems = 'center';
+  box.style.gap = '8px';
+  box.style.minWidth = '0';
+  box.style.fontSize = '1em';
+  box.style.pointerEvents = 'auto';
+
+  // Position the box above the plus button
+  if (btnRect) {
+    box.style.position = 'absolute';
+    // Center horizontally over the button, and above it
+    box.style.left = (btnRect.left + btnRect.width / 2 - 70) + 'px';
+    box.style.top = (btnRect.top - 54) + 'px';
+    box.style.width = '140px';
+  } else {
+    box.style.position = 'fixed';
+    box.style.left = '50vw';
+    box.style.top = '40vh';
+    box.style.transform = 'translate(-50%,-50%)';
+    box.style.width = '140px';
+  }
+
+  // --- Remove the "Add as:" label ---
+  // const label = document.createElement('div');
+  // label.textContent = 'Add as:';
+  // label.style.fontSize = '1em';
+  // label.style.marginBottom = '2px';
+  // box.appendChild(label);
+
+  // Input button
+  const btnInput = document.createElement('button');
+  btnInput.textContent = '➡️ Input';
+  btnInput.style.fontSize = '1em';
+  btnInput.style.padding = '4px 0';
+  btnInput.style.margin = '0';
+  btnInput.style.width = '100%';
+  btnInput.onclick = () => {
+    document.body.removeChild(overlay);
+    callback('input');
+  };
+  box.appendChild(btnInput);
+
+  // Output button
+  const btnOutput = document.createElement('button');
+  btnOutput.textContent = '🎯 Output';
+  btnOutput.style.fontSize = '1em';
+  btnOutput.style.padding = '4px 0';
+  btnOutput.style.margin = '0';
+  btnOutput.style.width = '100%';
+  btnOutput.onclick = () => {
+    document.body.removeChild(overlay);
+    callback('output');
+  };
+  box.appendChild(btnOutput);
+
+  // Cancel button
+  const btnCancel = document.createElement('button');
+  btnCancel.textContent = 'Cancel';
+  btnCancel.style.fontSize = '0.95em';
+  btnCancel.style.marginTop = '2px';
+  btnCancel.style.padding = '2px 0';
+  btnCancel.style.width = '100%';
+  btnCancel.onclick = () => {
+    document.body.removeChild(overlay);
+  };
+  box.appendChild(btnCancel);
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  // Focus first button for accessibility
+  setTimeout(() => btnInput.focus(), 0);
+}
+
 if (addVectorRow) {
-  addVectorRow.onclick = () => {
-    vectors.push({ value: [0, 0, 0], show: true, showTrans: true });
-    renderVectorsTable();
-    drawScene();
+  addVectorRow.onclick = (e) => {
+    if (e.shiftKey) {
+      // Shift+click: add input vector
+      vectors.push({ value: [0, 0, 0], show: true, showTrans: true, mode: 'input' });
+      renderVectorsTable();
+      drawScene();
+    } else if (e.altKey) {
+      // Alt+click: add output vector
+      vectors.push({ value: [0, 0, 0], show: true, showTrans: true, mode: 'output' });
+      renderVectorsTable();
+      drawScene();
+    } else {
+      showVectorTypeDialog((mode) => {
+        vectors.push({ value: [0, 0, 0], show: true, showTrans: true, mode });
+        renderVectorsTable();
+        drawScene();
+      });
+    }
   };
 }
 
@@ -678,6 +803,49 @@ function clearVectorTipDivs() {
     if (div.parentNode) div.parentNode.removeChild(div);
   }
   vectorTipDivs.length = 0;
+}
+
+// --- Add least-squares solver for Ax=b ---
+// matrix: n x 3, b: [n], returns x: [3]
+function solveLeastSquares(matrix, b) {
+  // A: n x 3, b: n
+  const n = matrix.length;
+  if (n === 0) return [0, 0, 0];
+  // Build A^T A (3x3) and A^T b (3)
+  let ATA = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+  ];
+  let ATb = [0, 0, 0];
+  for (let i = 0; i < n; ++i) {
+    for (let j = 0; j < 3; ++j) {
+      for (let k = 0; k < 3; ++k) {
+        ATA[j][k] += matrix[i][j] * matrix[i][k];
+      }
+      ATb[j] += matrix[i][j] * b[i];
+    }
+  }
+  // Solve ATA x = ATb
+  return solve3x3(ATA, ATb);
+}
+
+// Solve 3x3 linear system Ax=b
+function solve3x3(A, b) {
+  // Cramer's rule
+  const det = (
+    A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) -
+    A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) +
+    A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0])
+  );
+  if (Math.abs(det) < 1e-10) return [0, 0, 0];
+  function det3(a, b, c, d, e, f, g, h, i) {
+    return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  }
+  const dx = det3(b[0], A[0][1], A[0][2], b[1], A[1][1], A[1][2], b[2], A[2][1], A[2][2]);
+  const dy = det3(A[0][0], b[0], A[0][2], A[1][0], b[1], A[1][2], A[2][0], b[2], A[2][2]);
+  const dz = det3(A[0][0], A[0][1], b[0], A[1][0], A[1][1], b[1], A[2][0], A[2][1], b[2]);
+  return [dx / det, dy / det, dz / det];
 }
 
 // --- Modify drawScene to add draggable points ---
@@ -755,17 +923,38 @@ function drawScene() {
     for (let i = 0; i < vectors.length; ++i) {
       const v = vectors[i].value;
       const color = getVectorColor(i);
+      // --- Determine mode: input or output ---
+      const mode = vectors[i].mode || 'input';
+      let inputVec, out;
+      if (mode === 'input') {
+        // Always use 3 components for input vector, pad with zeros if missing
+        inputVec = [
+          v[0] !== undefined ? v[0] : 0,
+          v[1] !== undefined ? v[1] : 0,
+          v[2] !== undefined ? v[2] : 0
+        ];
+        out = multiplyMatrixVec(matrixVectors, inputVec);
+      } else {
+        // Output: v is b, solve A x = b for x
+        const b = [];
+        for (let j = 0; j < matrixVectors.length; ++j) {
+          b.push(v[j] !== undefined ? v[j] : 0);
+        }
+        inputVec = solveLeastSquares(matrixVectors, b);
+        out = b;
+      }
+
       // Draw original vector
       if (vectors[i].show) {
         if (showArrow3d) {
           drawCylinderAndCone(
             [0, 0, 0],
-            [v[0], v[1], v[2]],
-            color, // shaft color
-            color.map(x => x * 0.7) // tip color, slightly darker
+            mode === 'input' ? inputVec : out,
+            color,
+            color.map(x => x * 0.7)
           );
         } else {
-          let vec = [0, 0, 0, ...color, v[0], v[1], v[2], ...color];
+          let vec = [0, 0, 0, ...color, ...(mode === 'input' ? inputVec : out), ...color];
           const vecBuffer = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, vecBuffer);
           gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vec), gl.STREAM_DRAW);
@@ -776,24 +965,18 @@ function drawScene() {
       }
       // Draw transformed vector
       if (vectors[i].showTrans && matrixVectors && matrixVectors.length > 0) {
-        // Use this vector as input to the matrix
-        const inputVec = [];
-        for (let j = 0; j < matrixVectors.length; ++j) {
-          inputVec.push(v[j] !== undefined ? v[j] : 0);
-        }
-        const out = multiplyMatrixVec(matrixVectors, inputVec);
         // Use a slightly darker version of the main vector's color
         const baseColor = getVectorColor(i);
         const darkColor = baseColor.map(x => x * 0.7);
         if (showArrow3d) {
           drawCylinderAndCone(
             [0, 0, 0],
-            [out[0], out[1], out[2]],
+            mode === 'input' ? out : inputVec,
             darkColor,
             darkColor.map(x => x * 0.7)
           );
         } else {
-          let outVec = [0, 0, 0, ...darkColor, out[0], out[1], out[2], ...darkColor];
+          let outVec = [0, 0, 0, ...darkColor, ...(mode === 'input' ? out : inputVec), ...darkColor];
           const outBuffer = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, outBuffer);
           gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(outVec), gl.STREAM_DRAW);
@@ -807,11 +990,28 @@ function drawScene() {
     if (showComponents && vectors.length > 0) {
       for (let i = 0; i < vectors.length; ++i) {
         const v = vectors[i].value;
+        const mode = vectors[i].mode || 'input';
+        let inputVec, out;
+        if (mode === 'input') {
+          inputVec = [
+            v[0] !== undefined ? v[0] : 0,
+            v[1] !== undefined ? v[1] : 0,
+            v[2] !== undefined ? v[2] : 0
+          ];
+          out = multiplyMatrixVec(matrixVectors, inputVec);
+        } else {
+          const b = [];
+          for (let j = 0; j < matrixVectors.length; ++j) {
+            b.push(v[j] !== undefined ? v[j] : 0);
+          }
+          inputVec = solveLeastSquares(matrixVectors, b);
+          out = b;
+        }
         // Use a lighter version of the vector's color
         const color = lightenColor(getVectorColor(i), 0.5);
-        const proj = [v[0], 0, v[2]];
+        const proj = [(mode === 'input' ? inputVec[0] : out[0]), 0, (mode === 'input' ? inputVec[2] : out[2])];
         let comp1 = [0, 0, 0, ...color, proj[0], 0, proj[2], ...color];
-        let comp2 = [proj[0], 0, proj[2], ...color, v[0], v[1], v[2], ...color];
+        let comp2 = [proj[0], 0, proj[2], ...color, (mode === 'input' ? inputVec[0] : out[0]), (mode === 'input' ? inputVec[1] : out[1]), (mode === 'input' ? inputVec[2] : out[2]), ...color];
         // Draw projection vector
         const comp1Buffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, comp1Buffer);
@@ -830,16 +1030,19 @@ function drawScene() {
         // --- Show components for transformed vector as well ---
         if (matrixVectors && matrixVectors.length > 0 && vectors[i].showTrans) {
           // Compute transformed vector
-          const inputVec = [];
-          for (let j = 0; j < matrixVectors.length; ++j) {
-            inputVec.push(v[j] !== undefined ? v[j] : 0);
+          let tInput, tOut;
+          if (mode === 'input') {
+            tInput = inputVec;
+            tOut = out;
+          } else {
+            tInput = inputVec;
+            tOut = out;
           }
-          const out = multiplyMatrixVec(matrixVectors, inputVec);
           // Use a lighter/darker version of the transformed vector's color
           const tColor = lightenColor(getVectorColor(i).map(x => x * 0.7), 0.5);
-          const tProj = [out[0], 0, out[2]];
+          const tProj = [(mode === 'input' ? tOut[0] : tInput[0]), 0, (mode === 'input' ? tOut[2] : tInput[2])];
           let tComp1 = [0, 0, 0, ...tColor, tProj[0], 0, tProj[2], ...tColor];
-          let tComp2 = [tProj[0], 0, tProj[2], ...tColor, out[0], out[1], out[2], ...tColor];
+          let tComp2 = [tProj[0], 0, tProj[2], ...tColor, (mode === 'input' ? tOut[0] : tInput[0]), (mode === 'input' ? tOut[1] : tInput[1]), (mode === 'input' ? tOut[2] : tInput[2]), ...tColor];
           // Draw transformed projection vector
           const tComp1Buffer = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, tComp1Buffer);
@@ -878,8 +1081,24 @@ function drawScene() {
   if (showDraggableTips && vectors && vectors.length > 0) {
     for (let i = 0; i < vectors.length; ++i) {
       if (!vectors[i].show) continue;
-      const v = vectors[i].value;
-      const tip2d = projectToCanvas(v[0], v[1], v[2], mvp, canvas.width, canvas.height);
+      // --- Use the currently displayed vector tip (input or output) ---
+      const mode = vectors[i].mode || 'input';
+      let tipVec;
+      if (mode === 'input') {
+        // Always use 3 components for tip vector, pad with zeros if missing
+        tipVec = [
+          vectors[i].value[0] !== undefined ? vectors[i].value[0] : 0,
+          vectors[i].value[1] !== undefined ? vectors[i].value[1] : 0,
+          vectors[i].value[2] !== undefined ? vectors[i].value[2] : 0
+        ];
+      } else {
+        // For output mode, tip is the output vector (b)
+        tipVec = [];
+        for (let j = 0; j < matrixVectors.length; ++j) {
+          tipVec.push(vectors[i].value[j] !== undefined ? vectors[i].value[j] : 0);
+        }
+      }
+      const tip2d = projectToCanvas(tipVec[0], tipVec[1], tipVec[2], mvp, canvas.width, canvas.height);
       if (!tip2d) continue;
       const [cx, cy] = tip2d;
       // Create draggable div
@@ -909,7 +1128,8 @@ function drawScene() {
       div.addEventListener('mousedown', (e) => {
         e.preventDefault();
         dragging = true;
-        origVec = [v[0], v[1], v[2]];
+        // --- For output mode, drag b (output), for input mode, drag x (input) ---
+        origVec = tipVec.slice();
         // Mouse position relative to canvas
         const rect = canvas.getBoundingClientRect();
         origMouse = [
@@ -952,7 +1172,16 @@ function drawScene() {
           // Unproject
           const world = unprojectFromNDC(ndcX, ndcY, ndcZ, invMVP);
           if (!world) return;
-          vectors[i].value = [world[0], world[1], world[2]];
+          // --- For output mode, update b; for input mode, update x ---
+          if (mode === 'input') {
+            for (let j = 0; j < 3; ++j) {
+              vectors[i].value[j] = world[j];
+            }
+          } else {
+            for (let j = 0; j < 3; ++j) {
+              vectors[i].value[j] = world[j];
+            }
+          }
           renderVectorsTable();
           drawScene();
         }
@@ -982,17 +1211,56 @@ function drawScene() {
         const v = vectors[i].value;
         const color = getVectorColor(i);
         const colorBox = `<span style="display:inline-block;width:1em;height:1em;background:rgb(${Math.round(color[0]*255)},${Math.round(color[1]*255)},${Math.round(color[2]*255)});margin-right:2px;border-radius:2px;vertical-align:middle;"></span>`;
-        const len = Math.hypot(v[0], v[1], v[2]);
-        let line = `${colorBox}<b>v${i+1}</b> = (${v.map(x => x.toFixed(4)).join(', ')}) |v|=${len.toFixed(4)}`;
+        const mode = vectors[i].mode || 'input';
+        // Always show the user-inputted vector as a 3D vector
+        let inputVec3;
+        if (mode === 'input') {
+          // Only use the first 3 components for input vectors
+          inputVec3 = [
+            v[0] !== undefined ? v[0] : 0,
+            v[1] !== undefined ? v[1] : 0,
+            v[2] !== undefined ? v[2] : 0
+          ];
+        } else {
+          // For output mode, use all components (length = matrixVectors.length)
+          inputVec3 = [];
+          for (let j = 0; j < matrixVectors.length; ++j) {
+            inputVec3.push(v[j] !== undefined ? v[j] : 0);
+          }
+        }
+        let computedVec;
+        if (mode === 'input') {
+          // Output is the transformed vector (multiplyMatrixVec), can be n x 1
+          computedVec = multiplyMatrixVec(matrixVectors, inputVec3);
+        } else {
+          // Output is the solved input vector (solveLeastSquares), always 3D
+          const b = [];
+          for (let j = 0; j < matrixVectors.length; ++j) {
+            b.push(v[j] !== undefined ? v[j] : 0);
+          }
+          computedVec = solveLeastSquares(matrixVectors, b);
+        }
+        // Defensive: if computedVec is not array, fallback
+        if (!Array.isArray(computedVec)) computedVec = [0, 0, 0];
+        const len = Math.hypot(...inputVec3);
+        let line = `${colorBox}<b>v${i+1}</b> (${mode}) = (${inputVec3.map(x => x.toFixed(4)).join(', ')}) |v|=${len.toFixed(4)}`;
         // If transformed vector is shown, show its value too
         if (vectors[i].showTrans && matrixVectors && matrixVectors.length > 0) {
-          const inputVec = [];
-          for (let j = 0; j < matrixVectors.length; ++j) {
-            inputVec.push(v[j] !== undefined ? v[j] : 0);
+          if (mode === 'input') {
+            // For input mode, always show the output vector (any length)
+            // If matrix has < 3 rows, pad output with zeros for display
+            let paddedVec = computedVec.slice();
+            while (paddedVec.length < 3) paddedVec.push(0);
+            const tLen = Math.hypot(...paddedVec);
+            line += ` → (${computedVec.map(x => x.toFixed(4)).join(', ')}) |out|=${tLen.toFixed(4)}`;
+          } else {
+            // For output mode, always show the vector, but show a warning if matrix is not 3x3
+            const tLen = Math.hypot(...computedVec);
+            line += ` → (${computedVec.map(x => x.toFixed(4)).join(', ')}) |out|=${tLen.toFixed(4)}`;
+            if (matrixVectors.length !== 3) {
+              line += ` <span title="Output vector only valid for 3x3 matrices" style="color:#c00;font-weight:bold;">&#9888;</span>`;
+            }
           }
-          const out = multiplyMatrixVec(matrixVectors, inputVec);
-          const outLen = Math.hypot(out[0], out[1], out[2]);
-          line += ` → (${out.map(x => x.toFixed(4)).join(', ')}) |out|=${outLen.toFixed(4)}`;
         }
         lines.push(line);
       }
@@ -1101,7 +1369,7 @@ window.rotationY = rotationY;
 window.zoom = zoom;
 
 canvas.addEventListener('mousedown', (e) => {
-  if (e.button === 0) {
+  if (e.button === 0 && !e.altKey) {
     isDragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
@@ -1109,7 +1377,8 @@ canvas.addEventListener('mousedown', (e) => {
     isRightDragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
-  } else if (e.button === 1) {
+  } else if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    // Middle mouse OR Alt+Left mouse: orbit both axes
     isMiddleDragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
@@ -1166,6 +1435,7 @@ canvas.addEventListener('wheel', (e) => {
   if (e.deltaMode === 1) { // DOM_DELTA_LINE
     delta *= 16;
   } else if (e.deltaMode === 2) { // DOM_DELTA_PAGE
+   
     delta *= 120;
   }
   // Invert zoom direction if needed
@@ -1362,7 +1632,7 @@ if (themeSelect) {
 
   // Listen for system theme changes if in auto mode
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-    if (themeSelect.value === 'auto') {
+       if (themeSelect.value === 'auto') {
       applyTheme('auto');
       drawScene(); // <-- Redraw canvas on system theme change
     }

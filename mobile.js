@@ -135,7 +135,7 @@
   let vectorTipDragging = null;
   let vectorTipDragOrig = null;
   let vectorTipDragOrigTouch = null;
-  let vectorTipDragOffset = null; // <--- add this
+  let vectorTipDragOffset = null;
 
   document.addEventListener('touchstart', function(e) {
     var target = e.target;
@@ -143,18 +143,20 @@
     if (!vectorTipDragging && target.classList && target.classList.contains('vector-tip-draggable')) {
       vectorTipDragging = target;
       vectorTipDragOrig = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      // Compute offset between touch and tip center
+      // --- Fix: Use pageX/pageY and account for scroll for offset ---
       const rect = target.getBoundingClientRect();
+      const tipCenterX = rect.left + rect.width / 2 + window.scrollX;
+      const tipCenterY = rect.top + rect.height / 2 + window.scrollY;
       vectorTipDragOffset = {
-        x: e.touches[0].clientX - (rect.left + rect.width / 2),
-        y: e.touches[0].clientY - (rect.top + rect.height / 2)
+        x: e.touches[0].pageX - tipCenterX,
+        y: e.touches[0].pageY - tipCenterY
       };
       // Simulate mousedown for script.js drag logic
       var evt = new MouseEvent('mousedown', {
         bubbles: true,
         cancelable: true,
-        clientX: e.touches[0].clientX - vectorTipDragOffset.x,
-        clientY: e.touches[0].clientY - vectorTipDragOffset.y
+        clientX: e.touches[0].pageX - vectorTipDragOffset.x - window.scrollX,
+        clientY: e.touches[0].pageY - vectorTipDragOffset.y - window.scrollY
       });
       target.dispatchEvent(evt);
       e.preventDefault();
@@ -163,12 +165,12 @@
 
   document.addEventListener('touchmove', function(e) {
     if (vectorTipDragging && e.touches.length === 1) {
-      // Use the offset so the tip stays under the finger
+      // --- Fix: Use pageX/pageY and account for scroll for offset ---
       var evt = new MouseEvent('mousemove', {
         bubbles: true,
         cancelable: true,
-        clientX: e.touches[0].clientX - (vectorTipDragOffset ? vectorTipDragOffset.x : 0),
-        clientY: e.touches[0].clientY - (vectorTipDragOffset ? vectorTipDragOffset.y : 0)
+        clientX: e.touches[0].pageX - (vectorTipDragOffset ? vectorTipDragOffset.x : 0) - window.scrollX,
+        clientY: e.touches[0].pageY - (vectorTipDragOffset ? vectorTipDragOffset.y : 0) - window.scrollY
       });
       vectorTipDragging.dispatchEvent(evt);
       e.preventDefault();
@@ -185,7 +187,7 @@
       vectorTipDragging = null;
       vectorTipDragOrig = null;
       vectorTipDragOrigTouch = null;
-      vectorTipDragOffset = null; // <--- clear offset
+      vectorTipDragOffset = null;
       e.preventDefault();
     }
   }, { passive: false });

@@ -286,8 +286,9 @@ let vector = [0.6, 0.6, 0.6]; // keep for component/legacy, but not user-editabl
 const matrixTable = document.getElementById('matrixTable');
 const addMatrixRow = document.getElementById('addMatrixRow');
 let matrixVectors = [
-  [1, 0, 0],
-  [0, 1, 0]
+  [0.5, 0, 0],
+  [0, 0.5, 0],
+  [0, 0, 0.5]
 ];
 
 function renderMatrixTable() {
@@ -466,7 +467,29 @@ function multiplyMatrixVec(matrix, vec) {
   return result;
 }
 
+// --- Sidebar open/close logic ---
+const vectorSidebar = document.getElementById('vectorSidebar');
+const openSidebarBtn = document.getElementById('openSidebarBtn');
+const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+function updateSidebarButtons() {
+  // No need to flip/fade, just let CSS handle visibility and animation
+}
+if (vectorSidebar && openSidebarBtn && closeSidebarBtn) {
+  openSidebarBtn.onclick = () => {
+    vectorSidebar.classList.add('open');
+  };
+  closeSidebarBtn.onclick = () => {
+    vectorSidebar.classList.remove('open');
+  };
+  window.addEventListener('keydown', (e) => {
+    if (e.key === "Escape") {
+      vectorSidebar.classList.remove('open');
+    }
+  });
+}
+
 // --- Multiple vectors input as interactive table ---
+// Use the sidebar's vectorsTable and addVectorRow
 const vectorsTable = document.getElementById('vectorsTable');
 const addVectorRow = document.getElementById('addVectorRow');
 let vectors = [
@@ -573,6 +596,33 @@ function lightenColor(color, factor = 0.5) {
   return color.map(c => c + (1 - c) * factor);
 }
 
+// --- Draggable vector tips ---
+const vectorTipDivs = [];
+function clearVectorTipDivs() {
+  for (const div of vectorTipDivs) {
+    if (div.parentNode) div.parentNode.removeChild(div);
+  }
+  vectorTipDivs.length = 0;
+}
+
+// Project 3D point to 2D canvas coordinates
+function projectToCanvas(x, y, z, mvp, width, height) {
+  // Convert to clip space
+  const clip = [
+    mvp[0] * x + mvp[4] * y + mvp[8] * z + mvp[12],
+    mvp[1] * x + mvp[5] * y + mvp[9] * z + mvp[13],
+    mvp[2] * x + mvp[6] * y + mvp[10] * z + mvp[14],
+    mvp[3] * x + mvp[7] * y + mvp[11] * z + mvp[15],
+  ];
+  // Perspective divide
+  const ndc = clip.map(c => c / clip[3]);
+  // Convert to screen space
+  const x2d = (ndc[0] + 1) * 0.5 * width;
+  const y2d = (1 - (ndc[1] + 1) * 0.5) * height; // Flip Y
+  return [x2d, y2d];
+}
+
+// --- Modify drawScene to add draggable points ---
 function drawScene() {
   gl.clearColor(1, 1, 1, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -727,6 +777,107 @@ function drawScene() {
     }
   }
 
+  // --- Draggable vector tips ---
+  clearVectorTipDivs();
+  const mvp = getMVPMatrix();
+  if (showDraggableTips && vectors && vectors.length > 0) {
+    for (let i = 0; i < vectors.length; ++i) {
+      if (!vectors[i].show) continue;
+      const v = vectors[i].value;
+      const tip2d = projectToCanvas(v[0], v[1], v[2], mvp, canvas.width, canvas.height);
+      if (!tip2d) continue;
+      const [cx, cy] = tip2d;
+      // Create draggable div
+      const div = document.createElement('div');
+      // Use canvas.getBoundingClientRect() for correct placement
+      const rect = canvas.getBoundingClientRect();
+      div.style.position = 'absolute';
+      div.style.left = `${rect.left + window.scrollX + cx - 9}px`;
+      div.style.top = `${rect.top + window.scrollY + cy - 9}px`;
+      div.style.width = '18px';
+      div.style.height = '18px';
+      div.style.borderRadius = '50%';
+      div.style.background = `rgba(${Math.round(getVectorColor(i)[0]*255)},${Math.round(getVectorColor(i)[1]*255)},${Math.round(getVectorColor(i)[2]*255)},0.85)`;
+      div.style.border = '2px solid #fff';
+      div.style.boxShadow = '0 1px 6px 0 rgba(0,0,0,0.12)';
+      div.style.cursor = 'pointer';
+      div.style.zIndex = 1001;
+      div.title = 'Drag to move vector tip';
+      div.draggable = false;
+      div.className = 'vector-tip-draggable';
+
+      // Drag logic
+      let dragging = false;
+      let origVec = null;
+      let origMouse = null;
+
+      div.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        dragging = true;
+        origVec = [v[0], v[1], v[2]];
+        // Mouse position relative to canvas
+        const rect = canvas.getBoundingClientRect();
+        origMouse = [
+          e.clientX - rect.left,
+          e.clientY - rect.top
+        ];
+        document.body.style.userSelect = 'none';
+
+        function onDragMove(ev) {
+          if (!dragging) return;
+          // Mouse position relative to canvas
+          const rect = canvas.getBoundingClientRect();
+          const mx = ev.clientX - rect.left;
+          const my = ev.clientY - rect.top;
+          const dx = mx - origMouse[0];
+          const dy = my - origMouse[1];
+          // Move in screen space, then unproject to world
+          const tip2dNow = projectToCanvas(origVec[0], origVec[1], origVec[2], mvp, canvas.width, canvas.height);
+          if (!tip2dNow) return;
+          const [sx, sy] = tip2dNow;
+          const nx = sx + dx;
+          const ny = sy + dy;
+          // Unproject: find world coordinates at the same depth as original tip
+          const ndcX = (nx / canvas.width) * 2 - 1;
+          const ndcY = -((ny / canvas.height) * 2 - 1);
+          // Invert MVP
+          const invMVP = invertMatrix4(mvp);
+          if (!invMVP) return;
+          // Get original tip's NDC z
+          const px = origVec[0], py = origVec[1], pz = origVec[2], pw = 1;
+          const nx0 =
+            mvp[0] * px + mvp[4] * py + mvp[8] * pz + mvp[12] * pw;
+          const ny0 =
+            mvp[1] * px + mvp[5] * py + mvp[9] * pz + mvp[13] * pw;
+          const nz0 =
+            mvp[2] * px + mvp[6] * py + mvp[10] * pz + mvp[14] * pw;
+          const nw0 =
+            mvp[3] * px + mvp[7] * py + mvp[11] * pz + mvp[15] * pw;
+          const ndcZ = nw0 !== 0 ? nz0 / nw0 : 0;
+          // Unproject
+          const world = unprojectFromNDC(ndcX, ndcY, ndcZ, invMVP);
+          if (!world) return;
+          vectors[i].value = [world[0], world[1], world[2]];
+          renderVectorsTable();
+          drawScene();
+        }
+        function onDragEnd() {
+          if (dragging) {
+            dragging = false;
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', onDragMove);
+            window.removeEventListener('mouseup', onDragEnd);
+          }
+        }
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', onDragEnd);
+      });
+
+      document.body.appendChild(div);
+      vectorTipDivs.push(div);
+    }
+  }
+
   // Debug info
   if (debugInfo) {
     if (debugMode) {
@@ -758,6 +909,82 @@ function drawScene() {
 
   gl.disableVertexAttribArray(aPosition);
   gl.disableVertexAttribArray(aColor);
+}
+
+// 4x4 matrix inversion (for MVP)
+function invertMatrix4(m) {
+  const inv = new Float32Array(16);
+  const m00 = m[0], m01 = m[1], m02 = m[2], m03 = m[3];
+  const m10 = m[4], m11 = m[5], m12 = m[6], m13 = m[7];
+  const m20 = m[8], m21 = m[9], m22 = m[10], m23 = m[11];
+  const m30 = m[12], m31 = m[13], m32 = m[14], m33 = m[15];
+
+  const det =
+    m00 * m11 * m22 * m33 - m00 * m11 * m23 * m32 - m00 * m12 * m21 * m33 +
+    m00 * m12 * m23 * m31 + m00 * m13 * m21 * m32 - m00 * m13 * m22 * m31 -
+    m01 * m10 * m22 * m33 + m01 * m10 * m23 * m32 + m01 * m12 * m20 * m33 -
+    m01 * m12 * m23 * m30 - m01 * m13 * m20 * m32 + m01 * m13 * m22 * m30 +
+    m02 * m10 * m21 * m33 - m02 * m10 * m23 * m31 - m02 * m11 * m20 * m33 +
+    m02 * m11 * m23 * m30 + m02 * m13 * m20 * m31 - m02 * m13 * m21 * m30 -
+    m03 * m10 * m21 * m32 + m03 * m10 * m22 * m31 + m03 * m11 * m20 * m32 -
+    m03 * m11 * m22 * m30 - m03 * m12 * m20 * m31 + m03 * m12 * m21 * m30;
+
+  if (Math.abs(det) < 1e-6) return null; // Singular matrix
+
+  const invDet = 1 / det;
+  inv[0] = (m11 * m22 * m33 - m11 * m23 * m32 - m21 * m12 * m33 +
+    m21 * m13 * m32 + m31 * m12 * m23 - m31 * m13 * m22) * invDet;
+  inv[1] = (-m01 * m22 * m33 + m01 * m23 * m32 + m21 * m02 * m33 -
+    m21 * m03 * m32 - m31 * m02 * m23 + m31 * m03 * m22) * invDet;
+  inv[2] = (m01 * m12 * m33 - m01 * m13 * m32 - m11 * m02 * m33 +
+    m11 * m03 * m32 + m31 * m02 * m13 - m31 * m03 * m12) * invDet;
+  inv[3] = (-m01 * m12 * m23 + m01 * m13 * m22 + m11 * m02 * m23 -
+    m11 * m03 * m22 - m21 * m02 * m13 + m21 * m03 * m12) * invDet;
+
+  inv[4] = (-m10 * m22 * m33 + m10 * m23 * m32 + m20 * m12 * m33 -
+    m20 * m13 * m32 - m30 * m12 * m23 + m30 * m13 * m22) * invDet;
+  inv[5] = (m00 * m22 * m33 - m00 * m23 * m32 - m20 * m02 * m33 +
+    m20 * m03 * m32 + m30 * m02 * m23 - m30 * m03 * m22) * invDet;
+  inv[6] = (-m00 * m12 * m33 + m00 * m13 * m32 + m10 * m02 * m33 -
+    m10 * m03 * m32 - m30 * m02 * m13 + m30 * m03 * m12) * invDet;
+  inv[7] = (m00 * m12 * m23 - m00 * m13 * m22 - m10 * m02 * m23 +
+    m10 * m03 * m22 + m20 * m02 * m13 - m20 * m03 * m12) * invDet;
+
+  inv[8] = (m10 * m21 * m33 - m10 * m23 * m31 - m20 * m11 * m33 +
+    m20 * m13 * m31 + m30 * m11 * m23 - m30 * m13 * m21) * invDet;
+  inv[9] = (-m00 * m21 * m33 + m00 * m23 * m31 + m20 * m01 * m33 -
+    m20 * m03 * m31 - m30 * m01 * m23 + m30 * m03 * m21) * invDet;
+  inv[10] = (m00 * m11 * m33 - m00 * m13 * m31 - m10 * m01 * m33 +
+    m10 * m03 * m31 + m30 * m01 * m13 - m30 * m03 * m11) * invDet;
+  inv[11] = (-m00 * m11 * m23 + m00 * m13 * m21 + m10 * m01 * m23 -
+    m10 * m03 * m21 - m20 * m01 * m13 + m20 * m03 * m11) * invDet;
+
+  inv[12] = (-m10 * m21 * m32 + m10 * m22 * m31 + m20 * m11 * m32 -
+    m20 * m12 * m31 - m30 * m11 * m22 + m30 * m12 * m21) * invDet;
+  inv[13] = (m00 * m21 * m32 - m00 * m22 * m31 - m20 * m01 * m32 +
+    m20 * m02 * m31 + m30 * m01 * m22 - m30 * m02 * m21) * invDet;
+  inv[14] = (-m00 * m11 * m32 + m00 * m12 * m31 + m10 * m01 * m32 -
+    m10 * m02 * m31 - m30 * m01 * m12 + m30 * m02 * m11) * invDet;
+  inv[15] = (m00 * m11 * m22 - m00 * m12 * m21 - m10 * m01 * m22 +
+    m10 * m02 * m21 + m20 * m01 * m12 - m20 * m02 * m11) * invDet;
+
+  return inv;
+}
+
+// Unproject from NDC to world coordinates
+function unprojectFromNDC(ndcX, ndcY, ndcZ, invMVP) {
+  // Homogeneous clip coordinates
+  const clip = [ndcX, ndcY, ndcZ, 1];
+  // Multiply by inverse MVP matrix
+  const world = [
+    invMVP[0] * clip[0] + invMVP[4] * clip[1] + invMVP[8] * clip[2] + invMVP[12] * clip[3],
+    invMVP[1] * clip[0] + invMVP[5] * clip[1] + invMVP[9] * clip[2] + invMVP[13] * clip[3],
+    invMVP[2] * clip[0] + invMVP[6] * clip[1] + invMVP[10] * clip[2] + invMVP[14] * clip[3],
+    invMVP[3] * clip[0] + invMVP[7] * clip[1] + invMVP[11] * clip[2] + invMVP[15] * clip[3],
+  ];
+  // Perspective divide
+  const w = world[3];
+  return w !== 0 ? world.map(c => c / w) : world;
 }
 
 let rotationY = 0;
@@ -917,5 +1144,28 @@ if (debugInfo) {
   debugInfo.style.borderBottomLeftRadius = '';
   debugInfo.style.boxShadow = '0 0 8px 0 rgba(0,0,0,0.08)';
 }
+
+// --- Draggable vector tips toggle ---
+let showDraggableTips = true;
+let draggableTipCheckbox = document.getElementById('draggableTipCheckbox');
+if (!draggableTipCheckbox) {
+  draggableTipCheckbox = document.createElement('input');
+  draggableTipCheckbox.type = 'checkbox';
+  draggableTipCheckbox.id = 'draggableTipCheckbox';
+  draggableTipCheckbox.checked = true;
+  const label = document.createElement('label');
+  label.htmlFor = 'draggableTipCheckbox';
+  label.style.marginLeft = '12px';
+  label.appendChild(draggableTipCheckbox);
+  label.appendChild(document.createTextNode(' Draggable vector tips'));
+  // Insert into controls area or body
+  const controls = document.getElementById('controls') || document.body;
+  controls.appendChild(label);
+}
+showDraggableTips = draggableTipCheckbox.checked;
+draggableTipCheckbox.addEventListener('change', () => {
+  showDraggableTips = draggableTipCheckbox.checked;
+  drawScene();
+});
 
 drawScene();

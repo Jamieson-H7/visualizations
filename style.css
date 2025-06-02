@@ -9,3 +9,129 @@ body {
   width: 100vw;
   height: 100vh;
 }
+
+.main_controls {
+  border: 1px solid rgba(204, 204, 204, 1);
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+#vectorSidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 270px;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.93);
+  box-shadow: 2px 0 16px 0 rgba(0, 0, 0, 0.10);
+  border-right: 1px solid #ddd;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.25s cubic-bezier(.4, 0, .2, 1);
+}
+
+#vectorSidebar.open {
+  transform: translateX(0);
+}
+
+#openSidebarBtn, #closeSidebarBtn {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  background: #fff;
+  border: 1px solid #bbb;
+  border-radius: 0 32px 32px 0;
+  padding: 0;
+  width: 38px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 1px 2px 8px 0 rgba(0,0,0,0.08);
+  transition:
+    left 0.25s cubic-bezier(.4,0,.2,1),
+    background 0.2s,
+    top 0.25s cubic-bezier(.4,0,.2,1);
+  color: #444;
+  outline: none;
+  border-left: none;
+  background: linear-gradient(90deg, #fff 80%, #f3f3f3 100%);
+}
+
+#openSidebarBtn:hover {
+  background: linear-gradient(90deg, #f8f8f8 80%, #eaeaea 100%);
+}
+
+#openSidebarBtn .sidebar-icon,
+#closeSidebarBtn .sidebar-icon {
+  display: block;
+  font-size: 1.2em;
+  margin-left: 2px;
+}
+
+#openSidebarBtn.hide {
+  display: none;
+}
+
+#closeSidebarBtn {
+  /* Start at same position as openSidebarBtn, animate to sidebar edge */
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#vectorSidebar.open ~ #closeSidebarBtn {
+  left: 270px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#vectorSidebar.open ~ #openSidebarBtn {
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#vectorSidebar table {
+  background: none;
+}
+
+#vectorSidebar button#addVectorRow {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 600px) {
+  #vectorSidebar {
+    width: 90vw;
+    min-width: 0;
+  }
+  #closeSidebarBtn {
+    left: 0;
+    width: 32px;
+    height: 48px;
+    border-radius: 0 20px 20px 0;
+    font-size: 1em;
+  }
+  #vectorSidebar.open ~ #closeSidebarBtn {
+    left: 90vw;
+  }
+  #openSidebarBtn {
+    width: 32px;
+    height: 48px;
+    font-size: 1em;
+    border-radius: 0 20px 20px 0;
+  }
+}

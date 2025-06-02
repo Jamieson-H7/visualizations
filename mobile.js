@@ -110,9 +110,9 @@
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      var scale = pinchStartDist / dist;
+      var scale = dist / pinchStartDist;
       if (getInvertZoom()) scale = 1 / scale;
-      window.zoom = pinchStartZoom * Math.pow(scale, 0.15);
+      window.zoom = pinchStartZoom * Math.pow(scale, 0.3);
       if (typeof window.drawScene === 'function') window.drawScene();
     }
   }, { passive: false });
@@ -136,6 +136,7 @@
   let vectorTipDragOrig = null;
   let vectorTipDragOrigTouch = null;
   let vectorTipDragOffset = null;
+  let lastVectorTipMove = { x: 0, y: 0 };
 
   document.addEventListener('touchstart', function(e) {
     var target = e.target;
@@ -143,34 +144,43 @@
     if (!vectorTipDragging && target.classList && target.classList.contains('vector-tip-draggable')) {
       vectorTipDragging = target;
       vectorTipDragOrig = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      // --- Fix: Use pageX/pageY and account for scroll for offset ---
-      const rect = target.getBoundingClientRect();
-      const tipCenterX = rect.left + rect.width / 2 + window.scrollX;
-      const tipCenterY = rect.top + rect.height / 2 + window.scrollY;
+      const tipRect = target.getBoundingClientRect();
+      const tipCenterX = tipRect.left + tipRect.width / 2;
+      const tipCenterY = tipRect.top + tipRect.height / 2;
       vectorTipDragOffset = {
-        x: e.touches[0].pageX - tipCenterX,
-        y: e.touches[0].pageY - tipCenterY
+        x: e.touches[0].clientX - tipCenterX,
+        y: e.touches[0].clientY - tipCenterY
       };
+      lastVectorTipMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       // Simulate mousedown for script.js drag logic
       var evt = new MouseEvent('mousedown', {
         bubbles: true,
         cancelable: true,
-        clientX: e.touches[0].pageX - vectorTipDragOffset.x - window.scrollX,
-        clientY: e.touches[0].pageY - vectorTipDragOffset.y - window.scrollY
+        clientX: e.touches[0].clientX - vectorTipDragOffset.x,
+        clientY: e.touches[0].clientY - vectorTipDragOffset.y
       });
       target.dispatchEvent(evt);
+      e.preventDefault();
+    } else if (vectorTipDragging) {
+      // Prevent starting a new drag if one is already active
       e.preventDefault();
     }
   }, { passive: false });
 
   document.addEventListener('touchmove', function(e) {
     if (vectorTipDragging && e.touches.length === 1) {
-      // --- Fix: Use pageX/pageY and account for scroll for offset ---
+      // Reduce jitter: only send mousemove if the touch moved a minimum distance (e.g. 1px)
+      const moveX = e.touches[0].clientX;
+      const moveY = e.touches[0].clientY;
+      const dx = moveX - lastVectorTipMove.x;
+      const dy = moveY - lastVectorTipMove.y;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      lastVectorTipMove = { x: moveX, y: moveY };
       var evt = new MouseEvent('mousemove', {
         bubbles: true,
         cancelable: true,
-        clientX: e.touches[0].pageX - (vectorTipDragOffset ? vectorTipDragOffset.x : 0) - window.scrollX,
-        clientY: e.touches[0].pageY - (vectorTipDragOffset ? vectorTipDragOffset.y : 0) - window.scrollY
+        clientX: moveX - (vectorTipDragOffset ? vectorTipDragOffset.x : 0),
+        clientY: moveY - (vectorTipDragOffset ? vectorTipDragOffset.y : 0)
       });
       vectorTipDragging.dispatchEvent(evt);
       e.preventDefault();
@@ -188,8 +198,25 @@
       vectorTipDragOrig = null;
       vectorTipDragOrigTouch = null;
       vectorTipDragOffset = null;
+      lastVectorTipMove = { x: 0, y: 0 };
       e.preventDefault();
     }
+  }, { passive: false });
+
+  // --- Prevent vector tip drag state from leaking into canvas drag ---
+  // Clear vectorTipDragging on any canvas touchstart if not on a tip
+  canvas.addEventListener('touchstart', function(e) {
+    let touch = e.touches[0];
+    let el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!(el && el.classList && el.classList.contains('vector-tip-draggable'))) {
+      // If not starting on a tip, forcibly clear any drag state
+      vectorTipDragging = null;
+      vectorTipDragOrig = null;
+      vectorTipDragOrigTouch = null;
+      vectorTipDragOffset = null;
+      lastVectorTipMove = { x: 0, y: 0 };
+    }
+    // ...existing code for orbit/camera drag...
   }, { passive: false });
 
   // Prevent scrolling on canvas

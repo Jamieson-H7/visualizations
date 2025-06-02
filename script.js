@@ -281,7 +281,7 @@ function getMVPMatrix() {
   return mvp;
 }
 
-let vector = [0.6, 0.6, 0.6]; // keep for component/legacy, but not user-editable
+let vector = [1, 0, 0]; // keep for component/legacy, but not user-editable
 
 // --- Matrix input as interactive table ---
 const matrixTable = document.getElementById('matrixTable');
@@ -522,8 +522,11 @@ if (mobileCloseBtn) {
 // Use the sidebar's vectorsTable and addVectorRow
 const vectorsTable = document.getElementById('vectorsTable');
 const addVectorRow = document.getElementById('addVectorRow');
+// VECTORS
 let vectors = [
-  { value: [0.6, 0.6, 0.6], show: true, showTrans: true }
+  { value: [1, 0, 0], show: true, showTrans: true },
+  { value: [0, 1, 0], show: true, showTrans: true },
+  { value: [0, 0, 1], show: true, showTrans: true }
 ];
 
 function renderVectorsTable() {

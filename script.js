@@ -471,21 +471,50 @@ function multiplyMatrixVec(matrix, vec) {
 const vectorSidebar = document.getElementById('vectorSidebar');
 const openSidebarBtn = document.getElementById('openSidebarBtn');
 const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const mobileCloseBtn = vectorSidebar ? vectorSidebar.querySelector('.mobile-close-btn') : null;
 function updateSidebarButtons() {
   // No need to flip/fade, just let CSS handle visibility and animation
+}
+function closeSidebar() {
+  vectorSidebar.classList.remove('open');
+  if (sidebarOverlay) {
+    sidebarOverlay.style.display = 'none';
+    sidebarOverlay.style.opacity = '0';
+    sidebarOverlay.style.pointerEvents = 'none';
+  }
+  if (window.innerWidth < 700) {
+    const controlsPanel = document.getElementById('controlsPanel');
+    if (controlsPanel) controlsPanel.style.display = '';
+  }
 }
 if (vectorSidebar && openSidebarBtn && closeSidebarBtn) {
   openSidebarBtn.onclick = () => {
     vectorSidebar.classList.add('open');
+    if (sidebarOverlay) {
+      sidebarOverlay.style.display = 'block';
+      sidebarOverlay.style.opacity = '1';
+      sidebarOverlay.style.pointerEvents = 'auto';
+    }
+    // On mobile, hide controls panel when sidebar is open
+    if (window.innerWidth < 700) {
+      const controlsPanel = document.getElementById('controlsPanel');
+      if (controlsPanel) controlsPanel.style.display = 'none';
+    }
   };
-  closeSidebarBtn.onclick = () => {
-    vectorSidebar.classList.remove('open');
-  };
+  closeSidebarBtn.onclick = closeSidebar;
   window.addEventListener('keydown', (e) => {
     if (e.key === "Escape") {
-      vectorSidebar.classList.remove('open');
+      closeSidebar();
     }
   });
+}
+if (sidebarOverlay) {
+  sidebarOverlay.onclick = closeSidebar;
+}
+// Mobile close button logic
+if (mobileCloseBtn) {
+  mobileCloseBtn.onclick = closeSidebar;
 }
 
 // --- Multiple vectors input as interactive table ---
@@ -760,12 +789,41 @@ function drawScene() {
         gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 24, 0);
         gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 24, 12);
         gl.drawArrays(gl.LINES, 0, 2);
+
+        // --- Show components for transformed vector as well ---
+        if (matrixVectors && matrixVectors.length > 0 && vectors[i].showTrans) {
+          // Compute transformed vector
+          const inputVec = [];
+          for (let j = 0; j < matrixVectors.length; ++j) {
+            inputVec.push(v[j] !== undefined ? v[j] : 0);
+          }
+          const out = multiplyMatrixVec(matrixVectors, inputVec);
+          // Use a lighter/darker version of the transformed vector's color
+          const tColor = lightenColor(getVectorColor(i).map(x => x * 0.7), 0.5);
+          const tProj = [out[0], 0, out[2]];
+          let tComp1 = [0, 0, 0, ...tColor, tProj[0], 0, tProj[2], ...tColor];
+          let tComp2 = [tProj[0], 0, tProj[2], ...tColor, out[0], out[1], out[2], ...tColor];
+          // Draw transformed projection vector
+          const tComp1Buffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, tComp1Buffer);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tComp1), gl.STREAM_DRAW);
+          gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 24, 0);
+          gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 24, 12);
+          gl.drawArrays(gl.LINES, 0, 2);
+          // Draw transformed vertical component
+          const tComp2Buffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, tComp2Buffer);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tComp2), gl.STREAM_DRAW);
+          gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 24, 0);
+          gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 24, 12);
+          gl.drawArrays(gl.LINES, 0, 2);
+        }
       }
     }
   }
 
   // Draw matrix vectors (purple)
-  if (matrixVectors && matrixVectors.length > 0) {
+  if (showMatrixVectors && matrixVectors && matrixVectors.length > 0) {
     for (const v of matrixVectors) {
       let vec = [0, 0, 0, 0.5, 0, 0.7, v[0], v[1], v[2], 0.5, 0, 0.7];
       const vecBuffer = gl.createBuffer();
@@ -1106,8 +1164,19 @@ if (arrow3dCheckbox) {
   });
 }
 
+// --- Matrix vectors toggle ---
+const showMatrixVectorsCheckbox = document.getElementById('showMatrixVectorsCheckbox');
+let showMatrixVectors = true;
+if (showMatrixVectorsCheckbox) {
+  showMatrixVectors = showMatrixVectorsCheckbox.checked;
+  showMatrixVectorsCheckbox.addEventListener('change', () => {
+    showMatrixVectors = showMatrixVectorsCheckbox.checked;
+    drawScene();
+  });
+}
+
 const componentButton = document.getElementById('componentButton');
-let showComponents = false;
+let showComponents = true;
 if (componentButton) {
   componentButton.addEventListener('click', () => {
     showComponents = !showComponents;
@@ -1167,5 +1236,31 @@ draggableTipCheckbox.addEventListener('change', () => {
   showDraggableTips = draggableTipCheckbox.checked;
   drawScene();
 });
+
+// --- Collapsible controls panel ---
+const controlsPanel = document.getElementById('controlsPanel');
+const controlsContent = document.getElementById('controlsContent');
+const toggleControlsBtn = document.getElementById('toggleControlsBtn');
+const toggleControlsIcon = document.getElementById('toggleControlsIcon');
+let controlsCollapsed = false;
+
+function updateControlsPanel() {
+  if (controlsCollapsed) {
+    controlsContent.style.display = 'none';
+    controlsPanel.style.maxHeight = '44px';
+    toggleControlsIcon.innerHTML = '&#9660;'; // Down arrow
+  } else {
+    controlsContent.style.display = '';
+    controlsPanel.style.maxHeight = '';
+    toggleControlsIcon.innerHTML = '&#9650;'; // Up arrow
+  }
+}
+if (toggleControlsBtn && controlsPanel && controlsContent && toggleControlsIcon) {
+  toggleControlsBtn.onclick = () => {
+    controlsCollapsed = !controlsCollapsed;
+    updateControlsPanel();
+  };
+  updateControlsPanel();
+}
 
 drawScene();

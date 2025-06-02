@@ -41,6 +41,8 @@
   if (!canvas) return;
   var lastTouch = null;
   var isRotating = false;
+  var pinchStartDist = null;
+  var pinchStartZoom = null;
   var script = window; // script.js globals live here
 
   function getScriptGlobals() {
@@ -53,6 +55,13 @@
     if (e.touches.length === 1) {
       isRotating = true;
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      isRotating = false;
+      pinchStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      pinchStartZoom = g.zoom;
     }
   }, { passive: false });
 
@@ -69,12 +78,26 @@
       g.rotationX = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, g.rotationX));
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       if (typeof g.drawScene === 'function') g.drawScene();
+    } else if (e.touches.length === 2 && pinchStartDist !== null && pinchStartZoom !== null) {
+      e.preventDefault();
+      var dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      // Use a much less sensitive zoom factor
+      var scale = dist / pinchStartDist;
+      g.zoom = pinchStartZoom * Math.pow(scale, 0.5); // sqrt for less sensitivity
+      if (typeof g.drawScene === 'function') g.drawScene();
     }
   }, { passive: false });
 
   canvas.addEventListener('touchend', function(e) {
-    isRotating = false;
-    lastTouch = null;
+    if (e.touches.length === 0) {
+      isRotating = false;
+      lastTouch = null;
+      pinchStartDist = null;
+      pinchStartZoom = null;
+    }
   });
 
   // Make vector tips easier to drag on mobile (increase hit area)

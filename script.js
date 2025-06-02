@@ -666,18 +666,18 @@ function drawScene() {
           inputVec.push(v[j] !== undefined ? v[j] : 0);
         }
         const out = multiplyMatrixVec(matrixVectors, inputVec);
-        // Use a teal color for all transformed vectors, but with a slight tint per vector
-        const baseTeal = [0, 0.7, 0.7];
-        const tint = getVectorColor(i).map((c, j) => baseTeal[j] * 0.7 + c * 0.3);
+        // Use a slightly darker version of the main vector's color
+        const baseColor = getVectorColor(i);
+        const darkColor = baseColor.map(x => x * 0.7);
         if (showArrow3d) {
           drawCylinderAndCone(
             [0, 0, 0],
             [out[0], out[1], out[2]],
-            tint,
-            tint.map(x => x * 0.7)
+            darkColor,
+            darkColor.map(x => x * 0.7)
           );
         } else {
-          let outVec = [0, 0, 0, ...tint, out[0], out[1], out[2], ...tint];
+          let outVec = [0, 0, 0, ...darkColor, out[0], out[1], out[2], ...darkColor];
           const outBuffer = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, outBuffer);
           gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(outVec), gl.STREAM_DRAW);
@@ -725,59 +725,6 @@ function drawScene() {
       gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 24, 12);
       gl.drawArrays(gl.LINES, 0, 2);
     }
-  }
-
-  // Draw output vector (matrix * input vector) in teal
-  if (matrixVectors && matrixVectors.length > 0) {
-    // Use the input vector as a column vector of length n
-    // If not enough elements, pad with zeros; if too many, ignore extras
-    const inputVec = [];
-    for (let i = 0; i < matrixVectors.length; ++i) {
-      inputVec.push(vector[i] !== undefined ? vector[i] : 0);
-    }
-    const out = multiplyMatrixVec(matrixVectors, inputVec);
-    if (showArrow3d) {
-      drawCylinderAndCone(
-        [0, 0, 0],
-        [out[0], out[1], out[2]],
-        [0, 0.7, 0.7], // shaft color
-        [0, 0.5, 0.7]  // tip color
-      );
-    } else {
-      let outVec = [0, 0, 0, 0, 0.7, 0.7, out[0], out[1], out[2], 0, 0.7, 0.7];
-      const outBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, outBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(outVec), gl.STREAM_DRAW);
-      gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 24, 0);
-      gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 24, 12);
-      gl.drawArrays(gl.LINES, 0, 2);
-    }
-  }
-
-  // Draw component vectors if enabled
-  if (showComponents) {
-    // Projection onto xz plane (shadow)
-    const proj = [vector[0], 0, vector[2]];
-    // From origin to projection (blue)
-    let comp1 = [0, 0, 0, 0.2, 0.2, 1, proj[0], 0, proj[2], 0.2, 0.2, 1];
-    // From projection up to vector (green)
-    let comp2 = [proj[0], 0, proj[2], 0, 0.7, 0, vector[0], vector[1], vector[2], 0, 0.7, 0];
-
-    // Draw projection vector (blue)
-    const comp1Buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, comp1Buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(comp1), gl.STREAM_DRAW);
-    gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 24, 0);
-    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 24, 12);
-    gl.drawArrays(gl.LINES, 0, 2);
-
-    // Draw vertical component (green)
-    const comp2Buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, comp2Buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(comp2), gl.STREAM_DRAW);
-    gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 24, 0);
-    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 24, 12);
-    gl.drawArrays(gl.LINES, 0, 2);
   }
 
   // Debug info
@@ -951,6 +898,24 @@ if (debugCheckbox) {
     debugMode = debugCheckbox.checked;
     drawScene();
   });
+}
+
+// Move debug info to bottom left
+if (debugInfo) {
+  debugInfo.style.position = 'fixed';
+  debugInfo.style.left = '0';
+  debugInfo.style.bottom = '0';
+  debugInfo.style.top = '';
+  debugInfo.style.right = '';
+  debugInfo.style.background = 'rgba(255,255,255,0.95)';
+  debugInfo.style.padding = '8px 12px 8px 8px';
+  debugInfo.style.fontSize = '14px';
+  debugInfo.style.zIndex = 1000;
+  debugInfo.style.borderTopRightRadius = '8px';
+  debugInfo.style.borderTopLeftRadius = '';
+  debugInfo.style.borderBottomRightRadius = '';
+  debugInfo.style.borderBottomLeftRadius = '';
+  debugInfo.style.boxShadow = '0 0 8px 0 rgba(0,0,0,0.08)';
 }
 
 drawScene();
